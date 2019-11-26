@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"bufio"
 	"fmt"
 	"net"
@@ -8,9 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/digitalmarc/go/udp-chat/common"
-	"github.com/nu7hatch/gouuid"
+	"../common"
+	"../gouuid"
 )
 
 type Client struct {
@@ -23,6 +23,11 @@ type Client struct {
 }
 
 var scanError error
+
+var (
+	host = flag.String("host", "127.0.0.1", "host to listen on")
+	port = flag.Int("port", 1200, "port to listen on")
+)
 
 func (c *Client) packMessage(msg string, messageType common.MessageType) string {
 	return strings.Join([]string{c.userID.String(), strconv.Itoa(int(messageType)), c.userName, msg, time.Now().Format("15:04:05")}, "\x01")
@@ -67,10 +72,16 @@ func (c *Client) readInput() {
 	var msg string
 	for c.alive {
 		fmt.Println("msg: ")
+		//input := "foo  bar   baz"
+    	//scanner := bufio.NewScanner(strings.NewReader(input))
+    	//scanner.Split(bufio.ScanWords)
+
 		scanner := bufio.NewScanner(os.Stdin)
-		scanner.Split(bufio.ScanLines)
+		scanner.Split(bufio.ScanLines) //ScanLines
+
 		for scanner.Scan() {
 			msg = scanner.Text()
+			fmt.Printf("msg is %s\n", msg)
 			if msg == ":quit" || msg == ":q" {
 				c.alive = false
 			}
@@ -116,7 +127,12 @@ func main() {
 	// }
 	// service := os.Args[1]
 	// udpAddr, err := net.ResolveUDPAddr("udp4", service)
-	udpAddr, err := net.ResolveUDPAddr("udp4", "78.242.118.156:1200")
+	flag.Parse()
+
+	hostAddr := fmt.Sprintf("%s:%d",*host,*port)
+	fmt.Println("hostAddr:%s\n", hostAddr)
+
+	udpAddr, err := net.ResolveUDPAddr("udp4", hostAddr) // "127.0.0.1:1200"
 	checkError(err, "main")
 
 	var c Client

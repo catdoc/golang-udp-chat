@@ -1,17 +1,26 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
-	"github.com/digitalmarc/go/udp-chat/common"
-	"github.com/nu7hatch/gouuid"
+	"../common"
+	"../gouuid"
 )
 
+/*
 const (
 	port string = ":1200"
+)
+*/
+
+var (
+	//host = flag.String("host", "0.0.0.0", "host to listen on")
+	iport = flag.Int("port", 1200, "port to listen on")
+	blockSize = flag.Int("size", 1024, "block size to read packets on")
 )
 
 var p = fmt.Println
@@ -39,7 +48,8 @@ type Message struct {
 }
 
 func (server *Server) handleMessage() {
-	var buf [512]byte
+	//var buf [blockSize]byte
+	buf := make([]byte, *blockSize)
 
 	n, addr, err := server.conn.ReadFromUDP(buf[0:])
 	if err != nil {
@@ -62,7 +72,7 @@ func (server *Server) handleMessage() {
 			c.userName = m.userName
 			server.clients[m.userID] = c
 			server.messages <- msg
-			pf("%s joining", m.userName)
+			pf("%s joining , addr=%s", m.userName, addr)
 		case common.CLASSIQUE:
 
 			pf("%s %s: %s", m.time, m.userName, m.content)
@@ -81,11 +91,11 @@ func (s *Server) parseMessage(msg string) (m Message) {
 	m.userName = stringArray[2]
 	m.content = stringArray[3]
     m.time =  stringArray[4]
-	// pf("MESSAGE RECEIVED: %s \n", msg)
-	// pf("USER NAME: %s \n", stringArray [2])
-	// pf("CONTENT: %s \n", stringArray [3])
-	if strings.HasPrefix(msg, ":q") || strings.HasPrefix(msg, ":quit") {
-		pf("%s is leaving", m.userName)
+	//pf("MESSAGE RECEIVED: %s \n", msg)
+	pf("USER NAME: %s \n", stringArray [2])
+	pf("CONTENT: %s \n", stringArray [3])
+	if strings.HasPrefix(m.content, ":q") || strings.HasPrefix(m.content, ":quit") {
+		pf("%s is leaving \n", m.userName)
 		m.connectionStatus = common.LEAVING
 	}
 	return
@@ -96,12 +106,12 @@ func (s *Server) sendMessage() {
 		msg := <-s.messages
 		//p(00, sendstr)
 		for _, c := range s.clients {
+			//pf("send %s , addr=%s \n", msg, c.userAddr)
 			_, err := s.conn.WriteToUDP([]byte(msg), c.userAddr)
 			//pf("Bytes read %d, error: %v", n, err)
 			checkError(err)
 		}
 	}
-
 }
 
 func checkError(err error) {
@@ -111,9 +121,16 @@ func checkError(err error) {
 	}
 }
 
-func main() {
+func main() {	
+	flag.Parse()
+
+	port := fmt.Sprintf(":%d", *iport)
+	fmt.Println("iport=%d,port=%s", *iport, port)
+
 	udpAddress, err := net.ResolveUDPAddr("udp4", port)
 	checkError(err)
+
+	pf("IP=%s, Port %d \n", udpAddress.IP, udpAddress.Port)
 
 	var s Server
 	s.messages = make(chan string, 20)
