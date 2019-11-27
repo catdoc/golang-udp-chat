@@ -53,11 +53,12 @@ func (server *Server) handleMessage() {
 
 	n, addr, err := server.conn.ReadFromUDP(buf[0:])
 	if err != nil {
+		pf("ReadFromUDP error ")
 		return
 	}
 
 	msg := string(buf[0:n])
-	m := server.parseMessage(msg)
+	m := server.parseSimpleMessage(msg) //server.parseMessage(msg)
 
 	if m.connectionStatus == common.LEAVING {
 		delete(server.clients, m.userID)
@@ -77,12 +78,31 @@ func (server *Server) handleMessage() {
 
 			pf("%s %s: %s", m.time, m.userName, m.content)
 			server.messages <- msg
+		default:
+			// send back 
+			ack_msg := m.content // fmt.Sprintf("server got :%s", m.content)
+			pf("raw msg %s , ack_msg %s\n", m.content, ack_msg)
+			//server.messages <- ack_msg
+			server.conn.WriteToUDP([]byte(ack_msg), addr)
 		}
 	}
 }
 
+func (s *Server) parseSimpleMessage(msg string) (m Message) {
+	m.content = msg 
+	m.messageType = common.CUSTOM
+	return
+}
+
+
 func (s *Server) parseMessage(msg string) (m Message) {
+
 	stringArray := strings.Split(msg, "\x01")
+
+	if len(stringArray) < 5 {
+		m.content = msg
+		return
+	}
 
 	fmt.Println("")
 	m.userID, _ = uuid.ParseHex(stringArray[0])

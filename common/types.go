@@ -7,6 +7,7 @@ const (
 	FUNC MessageType = iota
     // CLASSIQUE message for messages sent by the end user
 	CLASSIQUE
+	CUSTOM
 )
 
 
